@@ -21,7 +21,6 @@ func main() {
 	userRepository := user.NewRepository(db)
 	userService := user.NewService(userRepository)
 
-
 	userHandler := handler.NewUserHandler(userService)
 
 	router := gin.Default()
@@ -29,6 +28,8 @@ func main() {
 
 	api.POST("/users", userHandler.RegisterUser)
 	api.POST("/sessions", userHandler.Login)
+	api.POST("/email_checkers", userHandler.CheckEmailAvailable)
+	api.POST("/avatars", userHandler.UploadAvatar)
 
 	router.Run()
 
