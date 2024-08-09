@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crowdfunding/auth"
 	"crowdfunding/helper"
 	"crowdfunding/user"
 	"fmt"
@@ -11,10 +12,11 @@ import (
 
 type userHandler struct {
 	userService user.Service
+	authService auth.Service
 }
 
-func NewUserHandler(service user.Service) *userHandler {
-	return &userHandler{service}
+func NewUserHandler(userService user.Service, authService auth.Service) *userHandler {
+	return &userHandler{userService, authService}
 }
 
 func (h *userHandler) RegisterUser(c *gin.Context) {
@@ -28,23 +30,30 @@ func (h *userHandler) RegisterUser(c *gin.Context) {
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
 		errors := helper.FormatValidationError(err)
-		errorMessage := gin.H{"errors" : errors}
+		errorMessage := gin.H{"errors": errors}
 
 		response := helper.APIResponse("Register account failed", http.StatusUnprocessableEntity, "error", errorMessage)
 		c.JSON(http.StatusUnprocessableEntity, response)
 		return
 	}
 
-	newUser, err:=h.userService.RegisterUser(input)
+	newUser, err := h.userService.RegisterUser(input)
 
-	
 	if err != nil {
 		response := helper.APIResponse("Register account failed", http.StatusBadRequest, "error", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	formatter := user.FormatUser(newUser,"tokentoken")
+	token, err := h.authService.GenerateToken(newUser.ID)
+
+	if err != nil {
+		response := helper.APIResponse("Register account failed", http.StatusBadRequest, "error", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	formatter := user.FormatUser(newUser, token)
 
 	response := helper.APIResponse("Account has been registered", http.StatusOK, "success", formatter)
 
@@ -68,9 +77,9 @@ func (h *userHandler) Login(c *gin.Context) {
 
 	if err != nil {
 		errors := helper.FormatValidationError(err)
-		errorMessage := gin.H{"errors" : errors}
+		errorMessage := gin.H{"errors": errors}
 
-		response := helper.APIResponse("Login failed", http.StatusUnprocessableEntity, "error",errorMessage)
+		response := helper.APIResponse("Login failed", http.StatusUnprocessableEntity, "error", errorMessage)
 		c.JSON(http.StatusUnprocessableEntity, response)
 		return
 	}
@@ -78,19 +87,26 @@ func (h *userHandler) Login(c *gin.Context) {
 	loggedinUser, err := h.userService.Login(input)
 
 	if err != nil {
-		errorMessage := gin.H{"errors" : err.Error()}
+		errorMessage := gin.H{"errors": err.Error()}
 
 		response := helper.APIResponse(("Login failed"), http.StatusUnprocessableEntity, "error", errorMessage)
-
 		c.JSON(http.StatusUnprocessableEntity, response)
-
 		return
 	}
-	formatter := user.FormatUser(loggedinUser, "tokentoken")
+
+	token, err := h.authService.GenerateToken(loggedinUser.ID)
+
+	if err != nil {
+		response := helper.APIResponse("Login failed", http.StatusBadRequest, "error", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	formatter := user.FormatUser(loggedinUser, token)
 	response := helper.APIResponse("Successfuly Loggedin", http.StatusOK, "success", formatter)
 
 	c.JSON(http.StatusOK, response)
-		
+
 }
 
 func (h *userHandler) CheckEmailAvailable(c *gin.Context) {
@@ -107,7 +123,7 @@ func (h *userHandler) CheckEmailAvailable(c *gin.Context) {
 
 	if err != nil {
 		errors := helper.FormatValidationError(err)
-		errorMessage := gin.H{"errors" : errors}
+		errorMessage := gin.H{"errors": errors}
 
 		response := helper.APIResponse("Email checking failed", http.StatusUnprocessableEntity, "error", errorMessage)
 		c.JSON(http.StatusUnprocessableEntity, response)
@@ -137,7 +153,7 @@ func (h *userHandler) CheckEmailAvailable(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (h * userHandler) UploadAvatar(c * gin.Context){
+func (h *userHandler) UploadAvatar(c *gin.Context) {
 	//input dari user
 	//simpan gambar di folder "images/"
 	//di service panggil repository
@@ -148,22 +164,22 @@ func (h * userHandler) UploadAvatar(c * gin.Context){
 	file, err := c.FormFile("avatar")
 	if err != nil {
 		data := gin.H{
-			"is_uploaded": false,}
+			"is_uploaded": false}
 		response := helper.APIResponse("Failed to upload avatar image", http.StatusBadRequest, "error", data)
 
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-		//ID dapat diambil dari JWT
-		userID := 4
+	//ID dapat diambil dari JWT
+	userID := 4
 
 	path := fmt.Sprintf("images/%d-%s", userID, file.Filename)
 	err = c.SaveUploadedFile(file, path)
 
 	if err != nil {
 		data := gin.H{
-			"is_uploaded": false,}
+			"is_uploaded": false}
 		response := helper.APIResponse("Failed to upload avatar image", http.StatusBadRequest, "error", data)
 		c.JSON(http.StatusBadRequest, response)
 		return
@@ -172,14 +188,14 @@ func (h * userHandler) UploadAvatar(c * gin.Context){
 	_, err = h.userService.SaveAvatar(userID, path)
 	if err != nil {
 		data := gin.H{
-			"is_uploaded": false,}
+			"is_uploaded": false}
 		response := helper.APIResponse("Failed to upload avatar image", http.StatusBadRequest, "error", data)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	data := gin.H{
-		"is_uploaded": true,}
+		"is_uploaded": true}
 
 	response := helper.APIResponse("Avatar successfuly uploaded", http.StatusOK, "success", data)
 
