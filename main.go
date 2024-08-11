@@ -2,9 +2,11 @@ package main
 
 import (
 	"crowdfunding/auth"
+	"crowdfunding/campaign"
 	"crowdfunding/handler"
 	"crowdfunding/helper"
 	"crowdfunding/user"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -38,8 +40,18 @@ func main() {
 
 	userRepository := user.NewRepository(db)
 	userService := user.NewService(userRepository)
-	authService := auth.NewService()
+	campaignRepository := campaign.NewRepository(db)
+	campaigns, err := campaignRepository.FindByUserID(1)
 
+	fmt.Println("debug")
+	fmt.Println("debug")
+	fmt.Println("debug")
+	fmt.Println(len(campaigns))
+	for _, campaign := range campaigns {
+		fmt.Println(campaign.Name)
+	}
+
+	authService := auth.NewService()
 	userHandler := handler.NewUserHandler(userService, authService)
 
 	router := gin.Default()
