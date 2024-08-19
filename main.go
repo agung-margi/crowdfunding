@@ -8,6 +8,7 @@ import (
 	"crowdfunding/payment"
 	"crowdfunding/transaction"
 	"crowdfunding/user"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -28,7 +29,16 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=%t&loc=%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_CHARSET"),
+		os.Getenv("DB_PARSE_TIME") == "True",
+		os.Getenv("DB_LOC"))
+
 	if dsn == "" {
 		log.Fatal("DSN not found")
 	}
